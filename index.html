@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Swing Trade Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --bg2: #13161b;
+    --bg3: #1a1e25;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8e6e0;
+    --text2: #8a8880;
+    --text3: #555450;
+    --green: #3dd68c;
+    --green-bg: rgba(61,214,140,0.1);
+    --red: #f56565;
+    --red-bg: rgba(245,101,101,0.1);
+    --amber: #f6ad55;
+    --amber-bg: rgba(246,173,85,0.1);
+    --blue: #63b3ed;
+    --blue-bg: rgba(99,179,237,0.1);
+    --accent: #3dd68c;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── TOP NAV ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-logo {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .nav-logo span { color: var(--text2); font-weight: 400; }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  #marketStatus {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+  }
+  #refreshBtn {
+    font-size: 12px;
+    font-family: var(--font-display);
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #refreshBtn:hover { background: var(--bg3); color: var(--text); }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+  /* ── SETUP CARD ── */
+  .setup-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    animation: fadeUp 0.4s ease both;
+  }
+  .setup-heading {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .setup-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+    max-width: 600px;
+  }
+  .setup-sub a { color: var(--accent); text-decoration: none; }
+  .setup-sub a:hover { text-decoration: underline; }
+  .api-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  @media (max-width: 640px) { .api-grid { grid-template-columns: 1fr; } }
+  .api-label { font-size: 11px; font-family: var(--font-mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .api-input-wrap { display: flex; flex-direction: column; }
+  .api-input {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .api-input:focus { border-color: var(--accent); }
+  .api-input::placeholder { color: var(--text3); }
+  .btn-primary {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 24px;
+    background: var(--accent);
+    color: #0d0f12;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
+    align-self: flex-end;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .status-row { margin-top: 14px; display: flex; align-items: center; gap: 10px; }
+  .pill {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+  .pill-green { background: var(--green-bg); color: var(--green); border-color: rgba(61,214,140,0.25); }
+  .pill-red   { background: var(--red-bg);   color: var(--red);   border-color: rgba(245,101,101,0.25); }
+  .pill-gray  { background: var(--bg3);       color: var(--text2); border-color: var(--border2); }
+  .pill-amber { background: var(--amber-bg);  color: var(--amber); border-color: rgba(246,173,85,0.25); }
+
+  /* ── DASHBOARD ── */
+  #dashboard { display: none; animation: fadeUp 0.4s ease both; }
+
+  .last-update {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── METRICS ── */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+  .metric {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    transition: border-color 0.2s;
+  }
+  .metric:hover { border-color: var(--border2); }
+  .metric-label { font-size: 11px; font-family: var(--font-mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+  .metric-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .metric-value.green { color: var(--green); }
+  .metric-value.red { color: var(--red); }
+  .metric-value.amber { color: var(--amber); }
+
+  /* ── SECTION HEADER ── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── WATCHLIST TABLE ── */
+  .table-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    margin-bottom: 2rem;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+  thead th {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.12s; }
+  tbody tr:hover td { background: var(--bg3); }
+  .tk { font-family: var(--font-mono); font-size: 14px; font-weight: 500; color: var(--text); }
+  .tk-name { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .sector-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg3);
+    color: var(--text3);
+    border: 1px solid var(--border);
+    margin-left: 8px;
+  }
+  .price-cell { font-family: var(--font-mono); font-size: 14px; font-weight: 500; }
+  .chg-cell { font-family: var(--font-mono); font-size: 13px; }
+  .zone-cell { font-family: var(--font-mono); font-size: 12px; color: var(--text2); }
+  .target-cell { font-family: var(--font-mono); font-size: 12px; }
+  .stop-cell { font-family: var(--font-mono); font-size: 12px; color: var(--red); }
+  .sig {
+    display: inline-block;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .sig-buy   { background: var(--green-bg); color: var(--green); border: 1px solid rgba(61,214,140,0.2); }
+  .sig-watch { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(246,173,85,0.2); }
+  .sig-wait  { background: var(--bg3);      color: var(--text3); border: 1px solid var(--border); }
+  .sig-hit   { background: var(--blue-bg);  color: var(--blue);  border: 1px solid rgba(99,179,237,0.2); }
+
+  /* ── TWO-COL CHARTS ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .chart-card-title { font-size: 12px; font-family: var(--font-mono); color: var(--text2); margin-bottom: 14px; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--font-mono); color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── TIPS ── */
+  .tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+  .tip-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+    transition: border-color 0.2s;
+  }
+  .tip-card:hover { border-color: var(--accent); }
+  .tip-card strong { color: var(--text); font-weight: 600; }
+  .tip-card.amber { border-left-color: var(--amber); }
+  .tip-card.blue  { border-left-color: var(--blue); }
+
+  /* ── AI CHAT ── */
+  .ai-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .ai-head { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .ai-sub { font-size: 12px; color: var(--text2); margin-bottom: 1rem; }
+  .ai-input-row { display: flex; gap: 8px; }
+  .ai-input {
+    flex: 1;
+    font-family: var(--font-display);
+    font-size: 13px;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .ai-input:focus { border-color: var(--accent); }
+  .ai-input::placeholder { color: var(--text3); }
+  .ai-response {
+    margin-top: 1rem;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.75;
+    min-height: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    display: none;
+  }
+  .ai-response.visible { display: block; }
+  .ai-response p { margin-bottom: 8px; }
+  .ai-response strong { color: var(--text); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  footer a { color: var(--text2); text-decoration: none; }
+
+  /* ── SPINNER ── */
+  .spin {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Swing<span>Desk</span></div>
+  <div class="nav-right">
+    <div id="marketStatus">● Market status</div>
+    <button id="refreshBtn" onclick="refreshPrices()" style="display:none;">↻ Refresh</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- ── SETUP ── -->
+  <div class="setup-panel">
+    <div class="setup-heading">Connect your Alpaca account</div>
+    <div class="setup-sub">
+      Enter your Alpaca API credentials below. Get them free at
+      <a href="https://app.alpaca.markets" target="_blank">app.alpaca.markets</a>
+      → API Keys → Generate New Keys. Keys stay in your browser only.
+    </div>
+    <div class="api-grid">
+      <div class="api-input-wrap">
+        <div class="api-label">API Key ID</div>
+        <input class="api-input" id="apiKey" type="text" placeholder="PKXXXXXXXXXXXXXX" />
+      </div>
+      <div class="api-input-wrap">
+        <div class="api-label">Secret Key</div>
+        <input class="api-input" id="apiSecret" type="password" placeholder="••••••••••••••••••••" />
+      </div>
+      <button class="btn-primary" id="connectBtn" onclick="connect()">Connect →</button>
+    </div>
+    <div class="status-row">
+      <div id="connStatus"><span class="pill pill-gray">Not connected</span></div>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div id="dashboard">
+    <div class="last-update" id="lastUpdate"></div>
+
+    <!-- Metrics -->
+    <div class="section-head">
+      <div class="section-title">Summary</div>
+    </div>
+    <div class="metrics-row" id="metricsRow"></div>
+
+    <!-- Watchlist -->
+    <div class="section-head">
+      <div class="section-title">Watchlist</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Price</th>
+            <th>Change</th>
+            <th>Buy zone</th>
+            <th>Target</th>
+            <th>Stop loss</th>
+            <th>Shares for $50</th>
+            <th>Signal</th>
+          </tr>
+        </thead>
+        <tbody id="watchlistBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Charts -->
+    <div class="section-head"><div class="section-title">Charts</div></div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-card-title">Price vs buy zones vs targets</div>
+        <div style="position:relative;height:220px;">
+          <canvas id="priceChart" role="img" aria-label="Grouped bar chart of current price, buy zone midpoint, and profit target for each stock in the watchlist.">Current price, buy zone, and target for CAT, XOM, CVX, FCX, DE, HON.</canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#63b3ed;"></div>Price</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3dd68c;"></div>Buy zone</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f6ad55;"></div>Target</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Shares needed to hit $50 profit</div>
+        <div style="position:relative;height:220px;">
+          <canvas id="sharesChart" role="img" aria-label="Bar chart showing the number of shares of each stock required to achieve a $50 profit based on the price move to target.">Shares needed per stock to achieve $50 profit.</canvas>
+        </div>
+        <div class="chart-legend" id="sharesLegend"></div>
+      </div>
+    </div>
+
+    <!-- Daily tips -->
+    <div class="section-head"><div class="section-title">Today's trade tips</div></div>
+    <div class="tips-grid" id="tipsGrid"></div>
+
+    <!-- AI Chat -->
+    <div class="ai-panel">
+      <div class="ai-head">Ask Claude about your watchlist</div>
+      <div class="ai-sub">Type a question and Claude will analyse your live data to answer it.</div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiInput" type="text" placeholder="e.g. Which stock is closest to its buy zone right now?" />
+        <button class="btn-primary" id="askBtn" onclick="askClaude()">Ask →</button>
+      </div>
+      <div class="ai-response" id="aiResponse"></div>
+    </div>
+
+  </div><!-- /dashboard -->
+
+</div><!-- /page -->
+
+<footer>
+  SwingDesk — powered by <a href="https://alpaca.markets" target="_blank">Alpaca Market Data</a> &amp; Claude AI &nbsp;·&nbsp;
+  Not financial advice. Always manage your risk.
+</footer>
+
+<script>
+const STOCKS = [
+  { ticker:'CAT', name:'Caterpillar',  sector:'Industrials', buyLow:780,  buyHigh:785,  target:805,  stop:773,   profitPerShare:20 },
+  { ticker:'XOM', name:'Exxon Mobil',  sector:'Energy',      buyLow:145,  buyHigh:148,  target:155,  stop:143,   profitPerShare:7  },
+  { ticker:'CVX', name:'Chevron',      sector:'Energy',      buyLow:183,  buyHigh:186,  target:195,  stop:181,   profitPerShare:9  },
+  { ticker:'FCX', name:'Freeport',     sector:'Materials',   buyLow:55,   buyHigh:57,   target:61,   stop:53.5,  profitPerShare:4  },
+  { ticker:'DE',  name:'Deere & Co',   sector:'Industrials', buyLow:515,  buyHigh:522,  target:535,  stop:510,   profitPerShare:13 },
+  { ticker:'HON', name:'Honeywell',    sector:'Industrials', buyLow:225,  buyHigh:230,  target:238,  stop:222,   profitPerShare:8  },
+];
+
+let liveData = {};
+let apiKey = '', apiSecret = '';
+let priceChart = null, sharesChart = null;
+
+function $(id) { return document.getElementById(id); }
+function fmt(n) { return n != null ? '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'; }
+
+function setStatus(html, type) {
+  const map = { ok:'pill-green', err:'pill-red', wait:'pill-gray', demo:'pill-amber' };
+  $('connStatus').innerHTML = `<span class="pill ${map[type]||'pill-gray'}">${html}</span>`;
+}
+
+function updateMarketStatus() {
+  const now = new Date();
+  const day = now.getDay();
+  const h = now.getUTCHours(), m = now.getUTCMinutes();
+  const mins = h * 60 + m;
+  const isWeekday = day >= 1 && day <= 5;
+  const isOpen = isWeekday && mins >= 870 && mins < 1200;
+  $('marketStatus').textContent = isOpen ? '● Market open' : '○ Market closed';
+  $('marketStatus').style.color = isOpen ? 'var(--green)' : 'var(--text3)';
+}
+
+function getSignal(price, s) {
+  if (!price) return { label:'No data', cls:'sig-wait' };
+  if (price >= s.target)                    return { label:'At target', cls:'sig-hit' };
+  if (price >= s.buyLow && price <= s.buyHigh) return { label:'Buy zone', cls:'sig-buy' };
+  if (price < s.buyLow && price > s.stop)    return { label:'Watch — dip', cls:'sig-watch' };
+  if (price > s.buyHigh && price < s.target) return { label:'Above zone', cls:'sig-watch' };
+  if (price <= s.stop)                       return { label:'Below stop', cls:'sig-wait' };
+  return { label:'Watch', cls:'sig-watch' };
+}
+
+function fmtChg(price, prev) {
+  if (!price || !prev) return '<span style="color:var(--text3)">—</span>';
+  const c = price - prev, p = (c/prev)*100;
+  const sign = c >= 0 ? '+' : '';
+  const col = c >= 0 ? 'var(--green)' : 'var(--red)';
+  return `<span style="color:${col};font-family:var(--font-mono);">${sign}${c.toFixed(2)} (${sign}${p.toFixed(2)}%)</span>`;
+}
+
+async function connect() {
+  apiKey = $('apiKey').value.trim();
+  apiSecret = $('apiSecret').value.trim();
+  if (!apiKey || !apiSecret) { setStatus('Enter both keys', 'err'); return; }
+  $('connectBtn').disabled = true;
+  setStatus('<span class="spin"></span>Connecting…', 'wait');
+  await fetchPrices();
+}
+
+async function fetchPrices() {
+  const tickers = STOCKS.map(s => s.ticker).join(',');
+  const url = `https://data.alpaca.markets/v2/stocks/snapshots?symbols=${tickers}&feed=iex`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'APCA-API-KEY-ID': apiKey, 'APCA-API-SECRET-KEY': apiSecret }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    STOCKS.forEach(s => {
+      const snap = data[s.ticker];
+      if (snap) {
+        liveData[s.ticker] = {
+          price: snap.latestTrade?.p || snap.latestQuote?.ap || snap.dailyBar?.c || null,
+          prev:  snap.prevDailyBar?.c || null,
+          high:  snap.dailyBar?.h || null,
+          low:   snap.dailyBar?.l || null,
+          vol:   snap.dailyBar?.v || null,
+        };
+      }
+    });
+    setStatus('● Live data', 'ok');
+    $('connectBtn').disabled = false;
+    showDashboard();
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'err');
+    $('connectBtn').disabled = false;
+    useDemoData();
+  }
+}
+
+function useDemoData() {
+  const demo = { CAT:{price:791,prev:784}, XOM:{price:148.78,prev:150.3}, CVX:{price:186.54,prev:189}, FCX:{price:57,prev:58.5}, DE:{price:520,prev:515}, HON:{price:230,prev:227} };
+  STOCKS.forEach(s => { liveData[s.ticker] = demo[s.ticker] || {}; });
+  setStatus('Demo mode (sample prices)', 'demo');
+  showDashboard();
+}
+
+function showDashboard() {
+  $('dashboard').style.display = 'block';
+  $('refreshBtn').style.display = 'inline-block';
+  $('lastUpdate').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+  renderMetrics();
+  renderTable();
+  renderCharts();
+  renderTips();
+}
+
+function refreshPrices() {
+  if (!apiKey) return;
+  $('refreshBtn').textContent = '↻ Refreshing…';
+  fetchPrices().then(() => { $('refreshBtn').textContent = '↻ Refresh'; });
+}
+
+function renderMetrics() {
+  const inZone = STOCKS.filter(s => { const p = liveData[s.ticker]?.price; return p && p >= s.buyLow && p <= s.buyHigh; }).length;
+  const changes = STOCKS.map(s => { const d = liveData[s.ticker]; return (d?.price && d?.prev) ? ((d.price-d.prev)/d.prev)*100 : 0; });
+  const avgChg = changes.reduce((a,b)=>a+b,0)/changes.length;
+  const best = STOCKS.reduce((b,s,i) => changes[i] > (b.chg??-999) ? {ticker:s.ticker,chg:changes[i]} : b, {});
+  const worst = STOCKS.reduce((b,s,i) => changes[i] < (b.chg??999) ? {ticker:s.ticker,chg:changes[i]} : b, {});
+
+  $('metricsRow').innerHTML = `
+    <div class="metric">
+      <div class="metric-label">Tracked</div>
+      <div class="metric-value">${STOCKS.length}</div>
+      <div class="metric-sub">stocks</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">In buy zone</div>
+      <div class="metric-value ${inZone>0?'green':'amber'}">${inZone}</div>
+      <div class="metric-sub">${inZone>0?'ready':'none yet'}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Avg change</div>
+      <div class="metric-value ${avgChg>=0?'green':'red'}">${avgChg>=0?'+':''}${avgChg.toFixed(2)}%</div>
+      <div class="metric-sub">today</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Best mover</div>
+      <div class="metric-value green" style="font-size:18px;">${best.ticker||'—'}</div>
+      <div class="metric-sub">${best.chg!=null?(best.chg>=0?'+':'')+best.chg.toFixed(2)+'%':'—'}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Weakest</div>
+      <div class="metric-value red" style="font-size:18px;">${worst.ticker||'—'}</div>
+      <div class="metric-sub">${worst.chg!=null?(worst.chg>=0?'+':'')+worst.chg.toFixed(2)+'%':'—'}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Daily target</div>
+      <div class="metric-value amber">$50</div>
+      <div class="metric-sub">your goal</div>
+    </div>
+  `;
+}
+
+function renderTable() {
+  $('watchlistBody').innerHTML = STOCKS.map(s => {
+    const d = liveData[s.ticker] || {};
+    const p = d.price;
+    const sig = getSignal(p, s);
+    const shares = Math.ceil(50 / s.profitPerShare);
+    const capital = p ? fmt(p * shares) : '—';
+    const priceCol = p ? `<span style="color:${p>=s.buyLow&&p<=s.buyHigh?'var(--green)':p<=s.stop?'var(--red)':'var(--text)'}">${fmt(p)}</span>` : '—';
+    return `<tr>
+      <td><div class="tk">${s.ticker}<span class="sector-tag">${s.sector}</span></div><div class="tk-name">${s.name}</div></td>
+      <td class="price-cell">${priceCol}</td>
+      <td class="chg-cell">${fmtChg(p, d.prev)}</td>
+      <td class="zone-cell">${fmt(s.buyLow)} – ${fmt(s.buyHigh)}</td>
+      <td class="target-cell" style="color:var(--amber)">${fmt(s.target)}</td>
+      <td class="stop-cell">${fmt(s.stop)}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--text2);">${shares} shares <span style="color:var(--text3)">(~${capital})</span></td>
+      <td><span class="sig ${sig.cls}">${sig.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCharts() {
+  const labels = STOCKS.map(s => s.ticker);
+  const prices = STOCKS.map(s => liveData[s.ticker]?.price || 0);
+  const zones  = STOCKS.map(s => (s.buyLow + s.buyHigh) / 2);
+  const targets= STOCKS.map(s => s.target);
+  const shares = STOCKS.map(s => Math.ceil(50 / s.profitPerShare));
+
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart($('priceChart'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label:'Price',    data:prices,  backgroundColor:'#63b3ed', borderRadius:4 },
+      { label:'Buy zone', data:zones,   backgroundColor:'#3dd68c', borderRadius:4 },
+      { label:'Target',   data:targets, backgroundColor:'#f6ad55', borderRadius:4 },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{color:'#555450',font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ ticks:{color:'#555450',font:{size:11},callback:v=>'$'+v.toLocaleString()}, grid:{color:'rgba(255,255,255,0.04)'} }
+      }
+    }
+  });
+
+  if (sharesChart) sharesChart.destroy();
+  const colors = ['#63b3ed','#3dd68c','#f6ad55','#f56565','#b794f4','#76e4f7'];
+  sharesChart = new Chart($('sharesChart'), {
+    type: 'bar',
+    data: { labels, datasets:[{ label:'Shares', data:shares, backgroundColor:colors, borderRadius:4 }]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{color:'#555450',font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ ticks:{color:'#555450',font:{size:11},stepSize:1}, grid:{color:'rgba(255,255,255,0.04)'} }
+      }
+    }
+  });
+
+  $('sharesLegend').innerHTML = STOCKS.map((s,i) =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${colors[i]};"></div>${s.ticker}: ${shares[i]} sh</div>`
+  ).join('');
+}
+
+function renderTips() {
+  const tips = STOCKS.map(s => {
+    const p = liveData[s.ticker]?.price;
+    if (!p) return null;
+    const shares = Math.ceil(50 / s.profitPerShare);
+    const capital = (p * shares).toFixed(0);
+    if (p >= s.buyLow && p <= s.buyHigh) {
+      return { color:'green', text:`<strong>${s.ticker}</strong> is in the buy zone at ${fmt(p)}. Buy ~${shares} shares (~$${parseInt(capital).toLocaleString()}) → target ${fmt(s.target)}, stop ${fmt(s.stop)}. Potential profit: ~$50` };
+    }
+    if (p < s.buyLow && p > s.stop) {
+      return { color:'amber', text:`<strong>${s.ticker}</strong> at ${fmt(p)} is below the buy zone. Watch for a bounce toward ${fmt(s.buyLow)} before entering.` };
+    }
+    if (p > s.buyHigh && p < s.target) {
+      return { color:'blue', text:`<strong>${s.ticker}</strong> at ${fmt(p)} has moved above the buy zone. Wait for a pullback to ${fmt(s.buyHigh)} for a safer entry.` };
+    }
+    if (p >= s.target) {
+      return { color:'blue', text:`<strong>${s.ticker}</strong> has reached the target at ${fmt(p)}. If holding, consider taking profits now.` };
+    }
+    return null;
+  }).filter(Boolean);
+
+  if (!tips.length) {
+    $('tipsGrid').innerHTML = '<div class="tip-card blue">No stocks are in their buy zones right now. Monitor and wait for pullbacks — patience is part of the strategy.</div>';
+    return;
+  }
+  $('tipsGrid').innerHTML = tips.map(t =>
+    `<div class="tip-card ${t.color === 'amber' ? 'amber' : t.color === 'blue' ? 'blue' : ''}">${t.text}</div>`
+  ).join('');
+}
+
+async function askClaude() {
+  const q = $('aiInput').value.trim();
+  if (!q) return;
+  const respEl = $('aiResponse');
+  respEl.className = 'ai-response visible';
+  respEl.innerHTML = '<span class="spin"></span> Thinking…';
+  $('askBtn').disabled = true;
+
+  const ctx = STOCKS.map(s => {
+    const d = liveData[s.ticker] || {};
+    const p = d.price;
+    const sig = getSignal(p, s);
+    const shares = Math.ceil(50 / s.profitPerShare);
+    return `${s.ticker} (${s.sector}): price=${p?'$'+p.toFixed(2):'N/A'}, buy zone=$${s.buyLow}–$${s.buyHigh}, target=$${s.target}, stop=$${s.stop}, signal=${sig.label}, shares for $50=${shares}`;
+  }).join('\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:`You are a concise swing trading assistant helping a beginner reach $50/day profit. Use the live watchlist data below to answer the user. Be practical and always mention stop loss risk management. Never guarantee profits.\n\nLive data:\n${ctx}`,
+        messages:[{ role:'user', content:q }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).map(c=>c.text||'').join('').trim();
+    respEl.innerHTML = text
+      .split('\n').filter(Boolean)
+      .map(l => `<p>${l.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</p>`)
+      .join('');
+  } catch(e) {
+    respEl.innerHTML = '<p style="color:var(--red)">Could not reach Claude API. Check your internet connection.</p>';
+  }
+  $('askBtn').disabled = false;
+}
+
+$('aiInput').addEventListener('keydown', e => { if (e.key==='Enter') askClaude(); });
+
+updateMarketStatus();
+setInterval(updateMarketStatus, 60000);
+</script>
+</body>
+</html>
